@@ -519,7 +519,7 @@ const ReportPage = ({ state }: { state: AppState }) => {
       <html lang="ar" dir="rtl">
         <head>
           <meta charset="UTF-8" />
-          <title>تقرير الأداء الوظيفي - توثيق</title>
+          <title></title>
           <script src="https://cdn.tailwindcss.com"></script>
           <script>${tailwindConfig}</script>
           <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
