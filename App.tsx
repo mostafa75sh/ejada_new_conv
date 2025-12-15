@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, useNavigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { AppState, Objective, GOVERNORATES, CLASSIFICATIONS, IndicatorType, Result, Evidence, EmployeeProfile } from './types';
-import { calculateTotalWeight, generateId, getDirectorateName, analyzePerformance, ensureUrlProtocol } from './utils';
+import { calculateTotalWeight, generateId, getDirectorateName, ensureUrlProtocol } from './utils';
 import { EvidenceUploader } from './components/EvidenceUploader';
 import { VoiceButton } from './components/VoiceButton';
 import { 
   Users, Target, ChevronDown, ChevronUp, Plus, Trash, AlertCircle, CheckCircle, 
-  Printer, ArrowLeft, ArrowRight, Save, LayoutGrid, FileText, Code, PenTool, Award
+  Printer, ArrowLeft, ArrowRight, Save, LayoutGrid, FileText, Code, PenTool, Award,
+  Sparkles, Loader, AlertTriangle
 } from 'lucide-react';
 
 // --- Home Page (Redesigned) ---
@@ -209,6 +210,28 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
     addObjective();
   };
 
+  const validateTargetOrder = (low: string, expected: string, high: string, type: IndicatorType): boolean => {
+    if (!low || !expected || !high) return true; // Can't validate empty
+    if (type === 'DATE') {
+        return low <= expected && expected <= high; // Dates: Low <= Expected <= High is incorrect usually? No, Early Date -> Late Date? 
+        // Actually usually Target Date is specific. Let's assume user knows dates.
+        // But for Numbers:
+    }
+    const nLow = parseFloat(low);
+    const nExpected = parseFloat(expected);
+    const nHigh = parseFloat(high);
+
+    if (!isNaN(nLow) && !isNaN(nExpected) && !isNaN(nHigh)) {
+        // Assume ascending logic (e.g. sales)
+        if (nLow < nExpected && nExpected < nHigh) return true;
+        // Assume descending logic (e.g. errors) where Low is "High number of errors" (Bad) and High is "0 errors" (Good)? 
+        // Usually in Ijada: Low = Minimum acceptable, High = Exceeding expectations.
+        // So Low (e.g. 80%) < Expected (100%) < High (110%).
+        return nLow <= nExpected && nExpected <= nHigh;
+    }
+    return true; // Text fallback
+  };
+
   return (
     <div className="space-y-6 pb-20 animate-fade-in">
       {/* Header Stat */}
@@ -300,7 +323,9 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
                   <Code size={16} /> النتائج الرئيسية
                 </h3>
                 
-                {obj.results.map((res: Result, rIndex) => (
+                {obj.results.map((res: Result, rIndex) => {
+                    const isValidTargets = validateTargetOrder(res.targetLow, res.targetExpected, res.targetHigh, res.indicatorType);
+                    return (
                   <div key={res.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm mb-4 hover:shadow-md transition-shadow">
                     <div className="flex flex-col md:flex-row justify-between items-start mb-4 border-b border-gray-100 pb-3 gap-3">
                        <div className="relative flex-1 w-full">
@@ -356,18 +381,42 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
                        </div>
                     </div>
 
-                    <div className="bg-gray-50 rounded-xl p-3 mb-4 border border-gray-100">
-                        <label className="text-xs font-black text-gray-400 block mb-2 text-center">المستهدفات</label>
+                    <div className={`bg-gray-50 rounded-xl p-3 mb-4 border transition-colors ${isValidTargets ? 'border-gray-100' : 'border-red-300 bg-red-50'}`}>
+                        <label className="text-xs font-black text-gray-400 block mb-2 text-center flex items-center justify-center gap-1">
+                            المستهدفات 
+                            {!isValidTargets && <span className="text-red-500 text-[10px] flex items-center gap-1"><AlertTriangle size={10} /> القيم غير منطقية (منخفض &lt; متوقع &lt; عالي)</span>}
+                        </label>
                         <div className="grid grid-cols-3 gap-3">
                           <div className="text-center">
-                            <input type={res.indicatorType === 'DATE' ? 'date' : 'text'} className="w-full text-xs bg-white border border-gray-200 rounded-lg p-2 text-center shadow-sm" placeholder="منخفض" value={res.targetLow} onChange={(e) => updateResult(obj.id, res.id, { targetLow: e.target.value })} />
+                            <label className="text-[10px] text-gray-400 mb-1 block">منخفض</label>
+                            <input 
+                                type={res.indicatorType === 'DATE' ? 'date' : 'text'} 
+                                className={`w-full text-xs bg-white border rounded-lg p-2 text-center shadow-sm ${!isValidTargets ? 'border-red-300 text-red-600' : 'border-gray-200'}`} 
+                                placeholder="أقل من المتوقع" 
+                                value={res.targetLow} 
+                                onChange={(e) => updateResult(obj.id, res.id, { targetLow: e.target.value })} 
+                            />
                           </div>
                           <div className="text-center relative">
-                            <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-600 text-[8px] px-2 rounded-full font-bold">المتوقع</div>
-                            <input type={res.indicatorType === 'DATE' ? 'date' : 'text'} className="w-full text-xs bg-white border-2 border-blue-200 rounded-lg p-2 text-center font-bold shadow-sm text-blue-900" placeholder="متوقع" value={res.targetExpected} onChange={(e) => updateResult(obj.id, res.id, { targetExpected: e.target.value })} />
+                            <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-600 text-[8px] px-2 rounded-full font-bold">المتوقع</div>
+                            <label className="text-[10px] text-blue-400 mb-1 block">المتوقع</label>
+                            <input 
+                                type={res.indicatorType === 'DATE' ? 'date' : 'text'} 
+                                className={`w-full text-xs bg-white border-2 rounded-lg p-2 text-center font-bold shadow-sm ${!isValidTargets ? 'border-red-300 text-red-600' : 'border-blue-200 text-blue-900'}`} 
+                                placeholder="الهدف" 
+                                value={res.targetExpected} 
+                                onChange={(e) => updateResult(obj.id, res.id, { targetExpected: e.target.value })} 
+                            />
                           </div>
                           <div className="text-center">
-                            <input type={res.indicatorType === 'DATE' ? 'date' : 'text'} className="w-full text-xs bg-white border border-gray-200 rounded-lg p-2 text-center shadow-sm" placeholder="عالي" value={res.targetHigh} onChange={(e) => updateResult(obj.id, res.id, { targetHigh: e.target.value })} />
+                            <label className="text-[10px] text-gray-400 mb-1 block">عالي</label>
+                            <input 
+                                type={res.indicatorType === 'DATE' ? 'date' : 'text'} 
+                                className={`w-full text-xs bg-white border rounded-lg p-2 text-center shadow-sm ${!isValidTargets ? 'border-red-300 text-red-600' : 'border-gray-200'}`} 
+                                placeholder="أعلى من المتوقع" 
+                                value={res.targetHigh} 
+                                onChange={(e) => updateResult(obj.id, res.id, { targetHigh: e.target.value })} 
+                            />
                           </div>
                         </div>
                     </div>
@@ -377,14 +426,14 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
                       onChange={(newEvidence) => updateResult(obj.id, res.id, { evidence: newEvidence })} 
                     />
                   </div>
-                ))}
+                )})}
 
                 <button 
                   onClick={() => addResult(obj.id)}
                   disabled={resultsWeight >= obj.weight}
-                  className={`w-full py-3 rounded-xl border-2 border-dashed flex items-center justify-center gap-2 text-sm font-bold transition-all ${resultsWeight >= obj.weight ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed' : 'border-oman-green/30 text-oman-green bg-green-50/50 hover:bg-green-50 hover:border-oman-green'}`}
+                  className={`w-full py-4 rounded-xl flex items-center justify-center gap-2 text-base font-bold transition-all shadow-md transform hover:scale-[1.01] ${resultsWeight >= obj.weight ? 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200' : 'bg-oman-green text-white hover:bg-green-700 hover:shadow-lg'}`}
                 >
-                  <Plus size={18} /> إضافة نتيجة جديدة
+                  <Plus size={20} /> إضافة نتيجة جديدة
                 </button>
               </div>
             )}
@@ -415,10 +464,7 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
 // --- Report Page ---
 const ReportPage = ({ state }: { state: AppState }) => {
   const navigate = useNavigate();
-  const analysisText = calculateTotalWeight(state.objectives) === 100 ? React.useMemo(() => {
-    return analyzePerformance(state.objectives);
-  }, [state.objectives]) : "يرجى إكمال الأهداف لتوليد التحليل.";
-
+ 
   if (calculateTotalWeight(state.objectives) !== 100) {
     return (
       <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
@@ -582,7 +628,7 @@ const ReportPage = ({ state }: { state: AppState }) => {
                  <div className="grid grid-cols-12 bg-gray-50 text-sm font-black p-3 border-b border-gray-400 text-gray-700 print:text-black print:text-xs print:py-1">
                     <div className="col-span-3">النتيجة</div>
                     <div className="col-span-1 text-center">الوزن</div>
-                    <div className="col-span-3 text-center">المستهدف (ت/م/ع)</div>
+                    <div className="col-span-3 text-center">المستهدفات</div>
                     <div className="col-span-2 text-center">الأداء الفعلي</div>
                     <div className="col-span-3">الأدلة</div>
                  </div>
@@ -591,27 +637,36 @@ const ReportPage = ({ state }: { state: AppState }) => {
                    <div key={res.id} className="grid grid-cols-12 text-sm border-b last:border-0 border-gray-300 p-3 items-center print:text-xs print:py-2">
                       <div className="col-span-3 font-bold pl-2 text-gray-900">{res.name}</div>
                       <div className="col-span-1 text-center font-medium">{res.weight}%</div>
-                      <div className="col-span-3 text-center flex flex-col text-xs print:text-[10px]">
-                         <span>{res.targetLow}</span>
-                         <span className="font-bold text-black border-y border-gray-200 my-1 bg-gray-50">{res.targetExpected}</span>
-                         <span>{res.targetHigh}</span>
+                      <div className="col-span-3 flex flex-col gap-1 text-xs print:text-[10px] px-1">
+                         <div className="flex justify-between border-b border-gray-100 pb-0.5">
+                            <span className="text-gray-500 font-bold">منخفض:</span>
+                            <span>{res.targetLow}</span>
+                         </div>
+                         <div className="flex justify-between border-b border-gray-100 pb-0.5 font-bold bg-blue-50/50">
+                            <span className="text-blue-600">متوقع:</span>
+                            <span className="text-blue-800">{res.targetExpected}</span>
+                         </div>
+                         <div className="flex justify-between">
+                            <span className="text-gray-500 font-bold">عالي:</span>
+                            <span>{res.targetHigh}</span>
+                         </div>
                       </div>
                       <div className="col-span-2 text-center font-black text-lg text-gray-900 print:text-sm">{res.actualPerformance}</div>
                       <div className="col-span-3">
                          {res.evidence.length > 0 ? (
-                            <div className="grid grid-cols-2 gap-2 print:grid-cols-2 print:gap-2">
+                            <div className="flex flex-col gap-2">
                                {res.evidence.map(ev => {
-                                 // Increase image size for print and use grid
+                                 // Update: No longer restrictive square aspect ratio
                                  if (ev.type === 'IMAGE') return (
-                                   <div key={ev.id} className="aspect-square border border-gray-200 p-1 bg-white rounded-lg overflow-hidden flex items-center justify-center print:border-gray-400">
-                                     <img src={ev.content} className="w-full h-full object-contain rounded-md" alt="Evidence" />
+                                   <div key={ev.id} className="border border-gray-200 p-2 bg-white rounded-lg overflow-hidden print:border-gray-400 break-inside-avoid">
+                                     <img src={ev.content} className="w-full h-auto max-h-[300px] object-contain rounded-md mx-auto" alt="Evidence" />
                                    </div>
                                  );
                                  // For links and videos, show QR code and link
                                  if (ev.type === 'LINK' || ev.type === 'VIDEO') {
                                    const safeUrl = ensureUrlProtocol(ev.content);
                                    return (
-                                     <div key={ev.id} className="col-span-2 flex items-center gap-3 border p-2 rounded-lg bg-white border-gray-200 print:border-gray-400 print:p-1">
+                                     <div key={ev.id} className="flex items-center gap-3 border p-2 rounded-lg bg-white border-gray-200 print:border-gray-400 print:p-1 break-inside-avoid">
                                          <img 
                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(safeUrl)}`} 
                                            className="w-12 h-12 print:w-14 print:h-14 object-contain border border-gray-100" 
@@ -629,7 +684,7 @@ const ReportPage = ({ state }: { state: AppState }) => {
                                  
                                  // For PDF or Text
                                  return (
-                                   <div key={ev.id} className="col-span-2 flex items-center gap-2 border p-2 rounded-lg bg-white border-gray-200 print:border-gray-400 print:p-1">
+                                   <div key={ev.id} className="flex items-center gap-2 border p-2 rounded-lg bg-white border-gray-200 print:border-gray-400 print:p-1 break-inside-avoid">
                                       <span className="text-xs print:text-[10px] text-gray-700 font-medium truncate block w-full">
                                           {ev.type === 'PDF' ? (ev.notes || 'ملف PDF') : ev.content}
                                       </span>
@@ -645,29 +700,10 @@ const ReportPage = ({ state }: { state: AppState }) => {
             ))}
           </div>
 
-          {/* Combined Section for Analysis and Signatures to prevent page break */}
+          {/* Combined Section for Signatures to prevent page break */}
           <div className="print-break-inside mt-8 print:mt-4">
-             {/* Professional Analysis Section */}
-             <div className="bg-white border-2 border-gray-300 p-8 rounded-xl print:p-4 print:border">
-                <h3 className="text-xl font-black text-gray-800 mb-4 border-b pb-2 print:text-sm print:mb-2">تحليل الأداء العام</h3>
-                <div className="text-base leading-relaxed text-gray-800 text-justify font-medium print:text-xs">
-                   {analysisText}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-8 mt-6 print:gap-4 print:mt-3">
-                   <div>
-                      <h4 className="font-bold text-sm text-gray-600 mb-2 print:text-xs print:mb-1">نقاط القوة:</h4>
-                      <p className="text-sm bg-gray-50 p-3 rounded border border-gray-300 print:text-xs print:p-2">التوثيق الدقيق للأدلة - تحقيق المستهدفات الزمنية في معظم النتائج.</p>
-                   </div>
-                   <div>
-                      <h4 className="font-bold text-sm text-gray-600 mb-2 print:text-xs print:mb-1">فرص التحسين:</h4>
-                      <p className="text-sm bg-gray-50 p-3 rounded border border-gray-300 print:text-xs print:p-2">زيادة التركيز على نتائج "تطوير العمل" في الفترة القادمة.</p>
-                   </div>
-                </div>
-             </div>
-
-             {/* Footer Signatures */}
-             <div className="mt-16 flex justify-between px-10 pt-10 border-t-2 border-gray-300 text-base print:mt-6 print:pt-4 print:text-xs print:px-4">
+             {/* Footer Signatures - NO ANALYSIS */}
+             <div className="flex justify-between px-10 pt-10 border-t-2 border-gray-300 text-base print:mt-6 print:pt-4 print:text-xs print:px-4">
                 <div className="text-center">
                    <p className="font-bold mb-12 text-black print:mb-8">الموظف</p>
                    <p className="text-gray-400">..................</p>
