@@ -53,9 +53,9 @@
         border: 1px solid rgba(255, 255, 255, 0.2);
       }
       @media print {
-        @page { size: A4; margin: 10mm; }
+        @page { size: A4; margin: 5mm; }
         .no-print { display: none !important; }
-        .print-break-inside { break-inside: avoid; }
+        .print-break-inside-avoid { break-inside: avoid; }
         
         /* Force background colors and reset layout for print */
         body, html { 
@@ -68,6 +68,7 @@
           width: 100% !important;
           margin: 0 !important;
           padding: 0 !important;
+          font-size: 10pt;
         }
         
         #root, main, .report-container {
@@ -84,6 +85,12 @@
         
         /* Ensure Grid works in print */
         .grid { display: grid !important; }
+        
+        /* Compact typography for print */
+        h1 { font-size: 18pt !important; }
+        h2 { font-size: 14pt !important; }
+        p, span, div { font-size: 10pt; }
+        .text-xs { font-size: 8pt !important; }
       }
     </style>
   <script type="importmap">

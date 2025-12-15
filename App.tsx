@@ -8,7 +8,7 @@ import { VoiceButton } from './components/VoiceButton';
 import { 
   Users, Target, ChevronDown, ChevronUp, Plus, Trash, AlertCircle, CheckCircle, 
   Printer, ArrowLeft, ArrowRight, Save, LayoutGrid, FileText, Code, PenTool, Award,
-  Sparkles, Loader, AlertTriangle
+  Sparkles, Loader, AlertTriangle, Quote, Lock
 } from 'lucide-react';
 
 // --- Home Page (Redesigned) ---
@@ -204,6 +204,14 @@ const ArrowUpIcon = () => (
 const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective, addResult, updateResult, deleteResult }: any) => {
   const [activeObjId, setActiveObjId] = useState<string | null>(null);
   const totalWeight = calculateTotalWeight(state.objectives);
+  
+  // Validation: Check if ALL objectives have results summing up to their weight
+  const allObjectivesValid = state.objectives.length > 0 && state.objectives.every((obj: Objective) => {
+      const resultsWeight = calculateTotalWeight(obj.results);
+      return resultsWeight === obj.weight;
+  });
+
+  const isReportReady = totalWeight === 100 && allObjectivesValid;
 
   const handleAddObjective = () => {
     if (totalWeight >= 100) return;
@@ -212,21 +220,19 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
 
   const validateTargetOrder = (low: string, expected: string, high: string, type: IndicatorType): boolean => {
     if (!low || !expected || !high) return true; // Can't validate empty
+    
     if (type === 'DATE') {
-        return low <= expected && expected <= high; // Dates: Low <= Expected <= High is incorrect usually? No, Early Date -> Late Date? 
-        // Actually usually Target Date is specific. Let's assume user knows dates.
-        // But for Numbers:
+        // Oldest Date = High Level (Completed Early/Best)
+        // Newest Date = Low Level (Completed Late/Worst)
+        return low >= expected && expected >= high;
     }
+
     const nLow = parseFloat(low);
     const nExpected = parseFloat(expected);
     const nHigh = parseFloat(high);
 
     if (!isNaN(nLow) && !isNaN(nExpected) && !isNaN(nHigh)) {
-        // Assume ascending logic (e.g. sales)
-        if (nLow < nExpected && nExpected < nHigh) return true;
-        // Assume descending logic (e.g. errors) where Low is "High number of errors" (Bad) and High is "0 errors" (Good)? 
-        // Usually in Ijada: Low = Minimum acceptable, High = Exceeding expectations.
-        // So Low (e.g. 80%) < Expected (100%) < High (110%).
+        // Numeric Logic: Low < Expected < High
         return nLow <= nExpected && nExpected <= nHigh;
     }
     return true; // Text fallback
@@ -258,12 +264,12 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
               <div className="flex flex-col md:flex-row justify-between items-start gap-4">
                 <div className="flex-1 space-y-3 w-full">
                   <div className="flex items-center gap-3">
-                    <span className="bg-gray-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-sm">هدف {index + 1}</span>
+                    <span className="bg-gray-800 text-white px-3 py-1 rounded-lg text-sm font-bold shadow-sm">هدف {index + 1}</span>
                     <select 
                       value={obj.classification} 
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => updateObjective(obj.id, { classification: e.target.value })}
-                      className="text-xs border-none bg-blue-100 text-blue-800 rounded-lg px-3 py-1 font-bold focus:ring-0 cursor-pointer hover:bg-blue-200 transition"
+                      className="text-sm border-none bg-blue-100 text-blue-800 rounded-lg px-3 py-1 font-bold focus:ring-0 cursor-pointer hover:bg-blue-200 transition"
                     >
                       {Object.entries(CLASSIFICATIONS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                     </select>
@@ -275,10 +281,10 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => updateObjective(obj.id, { text: e.target.value })}
                       placeholder="اكتب نص الهدف هنا..."
-                      className="w-full font-bold text-gray-800 text-lg border-b-2 border-dashed border-gray-300 focus:border-oman-green focus:outline-none bg-transparent pb-2 pr-10 transition-colors"
+                      className="w-full font-bold text-gray-800 text-xl border-b-2 border-dashed border-gray-300 focus:border-oman-green focus:outline-none bg-transparent pb-2 pr-10 transition-colors"
                     />
                     <div className="absolute right-0 top-0 text-gray-400">
-                       <PenTool size={16} />
+                       <PenTool size={20} />
                     </div>
                     <div className="absolute left-0 top-0">
                       <VoiceButton onTranscript={(txt) => updateObjective(obj.id, { text: txt })} />
@@ -287,30 +293,30 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
                 </div>
                 <div className="flex flex-row md:flex-col items-center md:items-end gap-3 w-full md:w-auto justify-between md:justify-start mt-2 md:mt-0">
                   <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200">
-                    <span className="text-xs text-gray-500 font-bold">الوزن:</span>
+                    <span className="text-sm text-gray-500 font-bold">الوزن:</span>
                     <input 
                       type="number" 
                       value={obj.weight}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => updateObjective(obj.id, { weight: Number(e.target.value) })}
-                      className="w-12 text-center bg-white border rounded p-1 font-bold text-oman-red outline-none focus:ring-1 focus:ring-oman-red"
+                      className="w-14 text-center bg-white border rounded p-1 font-bold text-oman-red outline-none focus:ring-1 focus:ring-oman-red text-lg"
                     />
-                    <span className="text-xs font-bold text-gray-400">%</span>
+                    <span className="text-sm font-bold text-gray-400">%</span>
                   </div>
                   <div className="flex items-center gap-2">
                      <button onClick={(e) => { e.stopPropagation(); deleteObjective(obj.id); }} className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-full transition">
-                        <Trash size={18} />
+                        <Trash size={20} />
                      </button>
                      <div className="p-2 bg-gray-100 rounded-full">
-                        {activeObjId === obj.id ? <ChevronUp size={20} className="text-gray-600"/> : <ChevronDown size={20} className="text-gray-600"/>}
+                        {activeObjId === obj.id ? <ChevronUp size={24} className="text-gray-600"/> : <ChevronDown size={24} className="text-gray-600"/>}
                      </div>
                   </div>
                 </div>
               </div>
               
               {!isComplete && (
-                <div className="mt-3 text-xs bg-red-50 text-red-600 px-3 py-2 rounded-lg inline-flex items-center gap-2 font-bold animate-pulse">
-                  <AlertCircle size={14} />
+                <div className="mt-3 text-sm bg-red-50 text-red-600 px-3 py-2 rounded-lg inline-flex items-center gap-2 font-bold animate-pulse mx-5 mb-3">
+                  <AlertCircle size={16} />
                   <span>انتبه: مجموع أوزان النتائج ({resultsWeight}%) لا يطابق وزن الهدف ({obj.weight}%)</span>
                 </div>
               )}
@@ -319,18 +325,26 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
             {/* Results Section (Accordion) */}
             {activeObjId === obj.id && (
               <div className="bg-gray-50/50 p-6 border-t border-gray-100 animate-slide-down">
-                <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Code size={16} /> النتائج الرئيسية
+                <h3 className="text-base font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                  <Code size={18} /> النتائج الرئيسية
                 </h3>
                 
                 {obj.results.map((res: Result, rIndex) => {
                     const isValidTargets = validateTargetOrder(res.targetLow, res.targetExpected, res.targetHigh, res.indicatorType);
+                    
+                    // Logic for Highlighting
+                    const isLowSelected = res.actualPerformance && res.targetLow && res.actualPerformance === res.targetLow;
+                    const isExpectedSelected = res.actualPerformance && res.targetExpected && res.actualPerformance === res.targetExpected;
+                    const isHighSelected = res.actualPerformance && res.targetHigh && res.actualPerformance === res.targetHigh;
+                    
+                    const hasTargets = res.targetLow && res.targetExpected && res.targetHigh;
+
                     return (
-                  <div key={res.id} className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm mb-4 hover:shadow-md transition-shadow">
-                    <div className="flex flex-col md:flex-row justify-between items-start mb-4 border-b border-gray-100 pb-3 gap-3">
+                  <div key={res.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-6 hover:shadow-md transition-shadow">
+                    <div className="flex flex-col md:flex-row justify-between items-start mb-6 border-b border-gray-100 pb-4 gap-3">
                        <div className="relative flex-1 w-full">
                          <input 
-                          className="w-full font-bold text-gray-800 border-none focus:ring-0 text-base p-0 placeholder-gray-300 bg-transparent"
+                          className="w-full font-bold text-gray-800 border-none focus:ring-0 text-lg p-0 placeholder-gray-300 bg-transparent"
                           placeholder="اكتب نص النتيجة الرئيسية..."
                           value={res.name}
                           onChange={(e) => updateResult(obj.id, res.id, { name: e.target.value })}
@@ -340,85 +354,100 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
                          </div>
                        </div>
                        <div className="flex items-center gap-3 w-full md:w-auto">
-                          <div className="flex items-center gap-1 bg-gray-50 px-2 py-1 rounded-lg border">
-                             <span className="text-[10px] text-gray-400 font-bold">وزن النتيجة</span>
+                          <div className="flex items-center gap-1 bg-gray-50 px-3 py-2 rounded-lg border">
+                             <span className="text-xs text-gray-400 font-bold">وزن النتيجة</span>
                              <input 
                                type="number" 
-                               className="w-10 text-sm bg-transparent border-none p-0 text-center font-bold text-gray-700 focus:ring-0"
+                               className="w-12 text-base bg-transparent border-none p-0 text-center font-bold text-gray-700 focus:ring-0"
                                placeholder="0"
                                value={res.weight}
                                onChange={(e) => updateResult(obj.id, res.id, { weight: Number(e.target.value) })}
                              />
                           </div>
-                          <button onClick={() => deleteResult(obj.id, res.id)} className="text-gray-300 hover:text-red-500 transition"><Trash size={16} /></button>
+                          <button onClick={() => deleteResult(obj.id, res.id)} className="text-gray-300 hover:text-red-500 transition"><Trash size={18} /></button>
                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
-                       <div>
-                         <label className="text-xs font-bold text-gray-500 block mb-2">نوع المؤشر</label>
-                         <select 
-                           value={res.indicatorType}
-                           onChange={(e) => updateResult(obj.id, res.id, { indicatorType: e.target.value })}
-                           className="w-full text-sm bg-gray-50 border-gray-200 rounded-lg p-2.5 focus:border-oman-green focus:ring-oman-green/20 font-medium cursor-pointer"
-                          >
-                           <option value="NUMBER">عدد</option>
-                           <option value="PERCENTAGE">نسبة %</option>
-                           <option value="DATE">تاريخ</option>
-                         </select>
-                       </div>
-                       <div>
-                         <label className="text-xs font-bold text-gray-500 block mb-2">الأداء الفعلي</label>
-                         <div className="relative flex items-center">
-                           <input 
-                             type={res.indicatorType === 'DATE' ? 'date' : 'text'}
-                             className="w-full text-sm bg-gray-50 border-gray-200 rounded-lg p-2.5 focus:border-oman-green focus:ring-oman-green/20 font-bold"
-                             value={res.actualPerformance}
-                             onChange={(e) => updateResult(obj.id, res.id, { actualPerformance: e.target.value })}
-                           />
-                           {res.indicatorType !== 'DATE' && <VoiceButton onTranscript={(txt) => updateResult(obj.id, res.id, { actualPerformance: txt })} className="absolute left-1" />}
-                         </div>
-                       </div>
-                    </div>
-
-                    <div className={`bg-gray-50 rounded-xl p-3 mb-4 border transition-colors ${isValidTargets ? 'border-gray-100' : 'border-red-300 bg-red-50'}`}>
-                        <label className="text-xs font-black text-gray-400 block mb-2 text-center flex items-center justify-center gap-1">
-                            المستهدفات 
-                            {!isValidTargets && <span className="text-red-500 text-[10px] flex items-center gap-1"><AlertTriangle size={10} /> القيم غير منطقية (منخفض &lt; متوقع &lt; عالي)</span>}
-                        </label>
-                        <div className="grid grid-cols-3 gap-3">
-                          <div className="text-center">
-                            <label className="text-[10px] text-gray-400 mb-1 block">منخفض</label>
-                            <input 
-                                type={res.indicatorType === 'DATE' ? 'date' : 'text'} 
-                                className={`w-full text-xs bg-white border rounded-lg p-2 text-center shadow-sm ${!isValidTargets ? 'border-red-300 text-red-600' : 'border-gray-200'}`} 
-                                placeholder="أقل من المتوقع" 
-                                value={res.targetLow} 
-                                onChange={(e) => updateResult(obj.id, res.id, { targetLow: e.target.value })} 
-                            />
-                          </div>
-                          <div className="text-center relative">
-                            <div className="absolute -top-5 left-1/2 transform -translate-x-1/2 bg-blue-100 text-blue-600 text-[8px] px-2 rounded-full font-bold">المتوقع</div>
-                            <label className="text-[10px] text-blue-400 mb-1 block">المتوقع</label>
-                            <input 
-                                type={res.indicatorType === 'DATE' ? 'date' : 'text'} 
-                                className={`w-full text-xs bg-white border-2 rounded-lg p-2 text-center font-bold shadow-sm ${!isValidTargets ? 'border-red-300 text-red-600' : 'border-blue-200 text-blue-900'}`} 
-                                placeholder="الهدف" 
-                                value={res.targetExpected} 
-                                onChange={(e) => updateResult(obj.id, res.id, { targetExpected: e.target.value })} 
-                            />
-                          </div>
-                          <div className="text-center">
-                            <label className="text-[10px] text-gray-400 mb-1 block">عالي</label>
-                            <input 
-                                type={res.indicatorType === 'DATE' ? 'date' : 'text'} 
-                                className={`w-full text-xs bg-white border rounded-lg p-2 text-center shadow-sm ${!isValidTargets ? 'border-red-300 text-red-600' : 'border-gray-200'}`} 
-                                placeholder="أعلى من المتوقع" 
-                                value={res.targetHigh} 
-                                onChange={(e) => updateResult(obj.id, res.id, { targetHigh: e.target.value })} 
-                            />
-                          </div>
+                    {/* Step 1: Define Type & Targets */}
+                    <div className="mb-6">
+                        <div className="flex justify-between items-center mb-2">
+                             <label className="text-sm font-bold text-gray-700">1. تحديد نوع المؤشر والمستهدفات</label>
+                             <select 
+                               value={res.indicatorType}
+                               onChange={(e) => updateResult(obj.id, res.id, { indicatorType: e.target.value })}
+                               className="text-xs bg-blue-50 border-blue-100 text-blue-700 rounded-lg p-1 font-bold cursor-pointer"
+                              >
+                               <option value="NUMBER">عدد</option>
+                               <option value="PERCENTAGE">نسبة %</option>
+                               <option value="DATE">تاريخ</option>
+                             </select>
                         </div>
+                        
+                        <div className={`bg-gray-50 rounded-xl p-4 border transition-colors ${isValidTargets ? 'border-gray-200' : 'border-red-300 bg-red-50'}`}>
+                            {!isValidTargets && <p className="text-red-500 text-xs font-bold mb-2 flex items-center gap-1 text-center justify-center"><AlertTriangle size={12} /> القيم غير منطقية</p>}
+                            <div className="grid grid-cols-3 gap-4">
+                              <div className={`text-center p-2 rounded-lg transition-all ${isLowSelected ? 'bg-oman-green text-white shadow-lg transform scale-105 ring-2 ring-green-300' : ''}`}>
+                                <label className={`text-xs mb-1 block font-bold ${isLowSelected ? 'text-green-100' : 'text-gray-400'}`}>منخفض {res.indicatorType === 'DATE' && '(الأحدث)'}</label>
+                                <input 
+                                    type={res.indicatorType === 'DATE' ? 'date' : 'number'}
+                                    step="any"
+                                    className={`w-full text-sm rounded-lg p-2 text-center shadow-sm font-bold ${isLowSelected ? 'bg-white/20 text-white placeholder-white/70 border-white/30' : 'bg-white border-gray-200 text-gray-800'}`} 
+                                    placeholder="القيمة" 
+                                    value={res.targetLow} 
+                                    onChange={(e) => updateResult(obj.id, res.id, { targetLow: e.target.value })} 
+                                />
+                              </div>
+                              <div className={`text-center relative p-2 rounded-lg transition-all ${isExpectedSelected ? 'bg-oman-green text-white shadow-lg transform scale-105 ring-2 ring-green-300' : ''}`}>
+                                <div className={`absolute -top-3 left-1/2 transform -translate-x-1/2 text-[10px] px-2 rounded-full font-bold ${isExpectedSelected ? 'bg-white text-oman-green' : 'bg-blue-100 text-blue-600'}`}>المتوقع</div>
+                                <label className={`text-xs mb-1 block font-bold ${isExpectedSelected ? 'text-green-100' : 'text-blue-400'}`}>المتوقع</label>
+                                <input 
+                                    type={res.indicatorType === 'DATE' ? 'date' : 'number'} 
+                                    step="any"
+                                    className={`w-full text-sm rounded-lg p-2 text-center font-bold shadow-sm ${isExpectedSelected ? 'bg-white/20 text-white placeholder-white/70 border-white/30' : 'bg-white border-blue-200 text-blue-900'}`} 
+                                    placeholder="القيمة" 
+                                    value={res.targetExpected} 
+                                    onChange={(e) => updateResult(obj.id, res.id, { targetExpected: e.target.value })} 
+                                />
+                              </div>
+                              <div className={`text-center p-2 rounded-lg transition-all ${isHighSelected ? 'bg-oman-green text-white shadow-lg transform scale-105 ring-2 ring-green-300' : ''}`}>
+                                <label className={`text-xs mb-1 block font-bold ${isHighSelected ? 'text-green-100' : 'text-gray-400'}`}>عالي {res.indicatorType === 'DATE' && '(الأقدم)'}</label>
+                                <input 
+                                    type={res.indicatorType === 'DATE' ? 'date' : 'number'} 
+                                    step="any"
+                                    className={`w-full text-sm rounded-lg p-2 text-center shadow-sm font-bold ${isHighSelected ? 'bg-white/20 text-white placeholder-white/70 border-white/30' : 'bg-white border-gray-200 text-gray-800'}`} 
+                                    placeholder="القيمة" 
+                                    value={res.targetHigh} 
+                                    onChange={(e) => updateResult(obj.id, res.id, { targetHigh: e.target.value })} 
+                                />
+                              </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Step 2: Actual Performance (Dropdown Only) */}
+                    <div className="mb-6">
+                         <label className="text-sm font-bold text-gray-700 block mb-2 flex items-center gap-2">
+                             2. الأداء الفعلي المتحقق
+                             {!hasTargets && <span className="text-xs text-red-500 font-normal">(يرجى تعبئة المستهدفات أعلاه أولاً)</span>}
+                         </label>
+                         <div className="relative">
+                            <select 
+                                disabled={!hasTargets}
+                                value={res.actualPerformance}
+                                onChange={(e) => updateResult(obj.id, res.id, { actualPerformance: e.target.value })}
+                                className={`w-full text-base border-2 rounded-xl p-3 font-bold appearance-none cursor-pointer transition-all
+                                    ${!hasTargets ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border-oman-green/30 focus:border-oman-green focus:ring-4 focus:ring-oman-green/10 text-gray-900'}
+                                `}
+                            >
+                                <option value="">-- اختر الأداء الذي تم تحقيقه --</option>
+                                {res.targetLow && <option value={res.targetLow}>{res.targetLow} (مستوى منخفض)</option>}
+                                {res.targetExpected && <option value={res.targetExpected}>{res.targetExpected} (مستوى متوقع)</option>}
+                                {res.targetHigh && <option value={res.targetHigh}>{res.targetHigh} (مستوى عالي)</option>}
+                            </select>
+                            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 pointer-events-none text-gray-500">
+                                {hasTargets ? <CheckCircle size={20} className={res.actualPerformance ? "text-oman-green" : "text-gray-300"} /> : <Lock size={18} />}
+                            </div>
+                         </div>
                     </div>
 
                     <EvidenceUploader 
@@ -445,12 +474,22 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
       <button
         onClick={handleAddObjective}
         disabled={totalWeight >= 100}
-        className={`w-full py-5 rounded-2xl shadow-sm border-2 border-dashed flex items-center justify-center gap-2 font-bold text-lg transition-all duration-300 ${totalWeight >= 100 ? 'border-gray-200 text-gray-300 bg-gray-50' : 'border-gray-300 text-gray-500 hover:border-oman-red hover:text-oman-red hover:bg-red-50 hover:shadow-md'}`}
+        className={`w-full py-5 rounded-2xl shadow-sm border-2 border-dashed flex items-center justify-center gap-2 font-bold text-lg transition-all duration-300 ${totalWeight >= 100 ? 'border-gray-200 text-gray-300 bg-gray-50 cursor-not-allowed opacity-60' : 'border-gray-300 text-gray-500 hover:border-oman-red hover:text-oman-red hover:bg-red-50 hover:shadow-md'}`}
       >
-        <Plus size={24} /> إضافة هدف جديد
+        {totalWeight >= 100 ? (
+            <>
+                <CheckCircle size={24} className="text-green-500" />
+                <span>اكتملت الأهداف (100%)</span>
+            </>
+        ) : (
+            <>
+                <Plus size={24} /> 
+                <span>إضافة هدف جديد</span>
+            </>
+        )}
       </button>
 
-      {totalWeight === 100 && (
+      {isReportReady && (
          <div className="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-40 w-full max-w-md px-4">
              <button onClick={() => window.location.hash = '#/report'} className="w-full bg-gray-900 text-white py-4 rounded-2xl shadow-2xl font-bold text-lg hover:bg-gray-800 transition-all flex justify-center items-center gap-3 animate-float hover:scale-105">
                <FileText /> عرض التقرير النهائي
@@ -465,15 +504,30 @@ const ObjectivesPage = ({ state, addObjective, updateObjective, deleteObjective,
 const ReportPage = ({ state }: { state: AppState }) => {
   const navigate = useNavigate();
  
-  if (calculateTotalWeight(state.objectives) !== 100) {
+  // Validation Logic
+  const totalObjectivesWeight = calculateTotalWeight(state.objectives);
+  const allResultsValid = state.objectives.length > 0 && state.objectives.every((obj: Objective) => {
+      const resultsWeight = calculateTotalWeight(obj.results);
+      return resultsWeight === obj.weight;
+  });
+
+  if (totalObjectivesWeight !== 100 || !allResultsValid) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 animate-fade-in">
+      <div className="flex flex-col items-center justify-center py-20 animate-fade-in text-center px-4">
         <div className="bg-red-50 p-6 rounded-full mb-6 text-oman-red">
            <AlertCircle size={64} />
         </div>
         <h2 className="text-3xl font-black text-gray-800 mb-2">التقرير غير جاهز</h2>
-        <p className="text-gray-500 font-medium">يجب أن يكون مجموع أوزان الأهداف 100% لعرض التقرير.</p>
-        <button onClick={() => window.location.hash = '#/objectives'} className="mt-8 px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition">العودة للأهداف</button>
+        <p className="text-gray-500 font-medium max-w-lg">
+          لا يمكن عرض التقرير. يرجى التأكد من أن:
+          <br/>
+          1. مجموع أوزان الأهداف يساوي <span className="font-bold text-red-600">100%</span>.
+          <br/>
+          2. مجموع أوزان النتائج لكل هدف يساوي <span className="font-bold text-red-600">وزن الهدف</span>.
+        </p>
+        <button onClick={() => window.location.hash = '#/objectives'} className="mt-8 px-8 py-3 bg-gray-900 text-white rounded-xl font-bold hover:bg-gray-800 transition flex items-center gap-2">
+            <ArrowRight size={20} /> العودة للأهداف وتصحيح الأوزان
+        </button>
       </div>
     );
   }
@@ -524,19 +578,42 @@ const ReportPage = ({ state }: { state: AppState }) => {
           <script>${tailwindConfig}</script>
           <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
           <style>
-            body { font-family: 'Cairo', sans-serif; background: white; margin: 0; padding: 20px; }
+            body { font-family: 'Cairo', sans-serif; background: white; margin: 0; padding: 0; }
             .grid { display: grid; }
             @media print {
-               @page { size: A4; margin: 10mm; }
-               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+               @page { size: A4; margin: 5mm; }
+               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 10pt; }
                .no-print { display: none; }
-               .print-break-inside { break-inside: avoid; }
+               .print-break-inside-avoid { break-inside: avoid; }
+               h1 { font-size: 16pt !important; }
+               h2 { font-size: 13pt !important; }
+               .text-xs { font-size: 8pt !important; }
+               
+               /* Omani Heritage Decorative Border - Clean White Background */
+               .heritage-border {
+                  border: 4px double #C8102E;
+                  position: relative;
+                  padding: 10px;
+                  background: white; /* Removed grid background */
+               }
+               .heritage-border::before {
+                  content: '';
+                  position: absolute;
+                  top: 0; left: 0; right: 0; height: 5px;
+                  background: linear-gradient(to right, #008546, #FFFFFF, #C8102E);
+               }
+               .heritage-border::after {
+                  content: '';
+                  position: absolute;
+                  bottom: 0; left: 0; right: 0; height: 5px;
+                  background: linear-gradient(to right, #C8102E, #FFFFFF, #008546);
+               }
             }
           </style>
         </head>
         <body>
-          <div class="max-w-4xl mx-auto">
-            ${reportContent.outerHTML}
+          <div class="max-w-4xl mx-auto heritage-border">
+            ${reportContent.innerHTML}
           </div>
           <script>
             // Wait for resources then print
@@ -561,10 +638,11 @@ const ReportPage = ({ state }: { state: AppState }) => {
          <div className="flex items-center gap-4">
             <button 
                 onClick={() => navigate('/objectives')}
-                className="bg-white/10 hover:bg-white/20 p-2 rounded-lg transition text-white"
+                className="bg-white/10 hover:bg-white/20 px-3 py-2 rounded-lg transition text-white flex items-center gap-2"
                 title="العودة للأهداف"
             >
                 <ArrowRight size={20} />
+                <span className="font-bold text-sm">العودة للأهداف</span>
             </button>
             <div>
                 <h3 className="font-bold text-lg">معاينة التقرير</h3>
@@ -586,18 +664,18 @@ const ReportPage = ({ state }: { state: AppState }) => {
        <div className="report-container font-sans text-gray-900 leading-snug">
           
           {/* Report Header */}
-          <div className="border-b-4 border-oman-red pb-4 mb-6 print:mb-2 flex justify-between items-end">
+          <div className="border-b-2 border-oman-green pb-4 mb-6 print:mb-2 print:pb-2 flex justify-between items-end bg-gray-50 print:bg-transparent p-4 print:p-0 rounded-lg">
             <div>
-              <h1 className="text-3xl font-black text-gray-900 mb-1 print:text-xl print:mb-0">توثيق أدلة إجادة</h1>
-              <p className="text-lg font-bold text-gray-700 mb-2 print:text-sm print:font-bold print:mb-1">{state.profile.name}</p>
+              <h1 className="text-3xl font-black text-oman-red mb-1 print:text-xl print:mb-0">توثيق أدلة إجادة</h1>
+              <p className="text-lg font-bold text-gray-800 mb-2 print:text-sm print:font-bold print:mb-0">{state.profile.name}</p>
 
-              <h2 className="text-xl font-bold text-oman-green print:text-lg">نظام إجادة</h2>
-              <p className="text-base text-gray-600 font-medium mt-1 print:text-sm">{state.profile.year} - الفترة {state.profile.period === 'FIRST' ? 'الأولى' : 'الثانية'}</p>
+              <h2 className="text-xl font-bold text-oman-green print:text-base print:mt-1">نظام إجادة</h2>
+              <p className="text-base text-gray-600 font-medium mt-1 print:text-xs">{state.profile.year} - الفترة {state.profile.period === 'FIRST' ? 'الأولى' : 'الثانية'}</p>
             </div>
             <div className="flex gap-4">
-               {state.profile.schoolLogo && <img src={state.profile.schoolLogo} alt="School Logo" className="h-24 w-24 print:h-16 print:w-16 object-contain" />}
+               {state.profile.schoolLogo && <img src={state.profile.schoolLogo} alt="School Logo" className="h-24 w-24 print:h-20 print:w-20 object-contain" />}
                <div className="text-left text-sm text-gray-600 font-medium print:text-xs">
-                  <p className="font-bold text-black">سلطنة عُمان</p>
+                  <p className="font-bold text-black text-lg print:text-sm">سلطنة عُمان</p>
                   <p>وزارة التربية والتعليم</p>
                   <p>{getDirectorateName(state.profile.governorate)}</p>
                </div>
@@ -605,9 +683,9 @@ const ReportPage = ({ state }: { state: AppState }) => {
           </div>
 
           {/* Basic Info Grid */}
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8 print:p-4 print:mb-4 print:bg-white print:border-gray-400">
-            <h3 className="text-base font-black text-oman-red mb-4 uppercase tracking-wider border-b border-gray-200 pb-2 inline-block print:mb-2 print:text-sm">البيانات الأساسية</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-base print:text-xs print:gap-4">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 mb-8 print:p-2 print:mb-3 print:bg-white print:border-double print:border-4 print:border-gray-300">
+            <h3 className="text-base font-black text-oman-red mb-4 uppercase tracking-wider border-b border-gray-200 pb-2 inline-block print:mb-1 print:text-xs print:pb-0">البيانات الأساسية</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-base print:text-xs print:gap-2">
                <div><span className="text-gray-500 block text-xs mb-1 font-bold print:mb-0">الاسم:</span> <span className="font-bold text-lg text-gray-900 print:text-sm">{state.profile.name}</span></div>
                <div><span className="text-gray-500 block text-xs mb-1 font-bold print:mb-0">الوظيفة:</span> <span className="font-bold text-lg text-gray-900 print:text-sm">{state.profile.jobTitle}</span></div>
                <div><span className="text-gray-500 block text-xs mb-1 font-bold print:mb-0">جهة العمل:</span> <span className="font-bold text-lg text-gray-900 print:text-sm">{state.profile.institution}</span></div>
@@ -616,16 +694,17 @@ const ReportPage = ({ state }: { state: AppState }) => {
           </div>
 
           {/* Objectives Table */}
-          <div className="space-y-8 print:space-y-4">
+          <div className="space-y-8 print:space-y-3">
             {state.objectives.map((obj, i) => (
-              <div key={obj.id} className="print-break-inside border border-gray-400 rounded-lg overflow-hidden">
-                 <div className="bg-gray-100 p-3 border-b border-gray-400 flex justify-between items-center print:bg-gray-200 print:py-2 print:px-3">
-                    <span className="font-black text-lg text-gray-900 print:text-sm">الهدف {i + 1}: {obj.text}</span>
-                    <span className="bg-white border border-gray-400 px-3 py-1 rounded text-sm font-bold print:text-xs">{CLASSIFICATIONS[obj.classification]} ({obj.weight}%)</span>
+              <div key={obj.id} className="border-2 border-oman-green/50 rounded-lg overflow-hidden print:border print:border-gray-400 print:rounded-none">
+                 {/* Objective Header */}
+                 <div className="bg-gray-100 p-3 border-b-2 border-oman-green/50 flex justify-between items-center print:bg-oman-green print:text-white print:py-1 print:px-2 print-break-inside-avoid print:border-b-0">
+                    <span className="font-black text-lg text-gray-900 print:text-white print:text-xs">الهدف {i + 1}: {obj.text}</span>
+                    <span className="bg-white border border-gray-400 px-3 py-1 rounded text-sm font-bold print:text-black print:text-[10px] print:px-1 print:py-0">{CLASSIFICATIONS[obj.classification]} ({obj.weight}%)</span>
                  </div>
                  
                  {/* Results Header */}
-                 <div className="grid grid-cols-12 bg-gray-50 text-sm font-black p-3 border-b border-gray-400 text-gray-700 print:text-black print:text-xs print:py-1">
+                 <div className="grid grid-cols-12 bg-gray-50 text-sm font-black p-3 border-b border-gray-300 text-gray-700 print:text-black print:text-[10px] print:py-1 print:bg-gray-200 print-break-inside-avoid">
                     <div className="col-span-3">النتيجة</div>
                     <div className="col-span-1 text-center">الوزن</div>
                     <div className="col-span-3 text-center">المستهدفات</div>
@@ -633,87 +712,98 @@ const ReportPage = ({ state }: { state: AppState }) => {
                     <div className="col-span-3">الأدلة</div>
                  </div>
 
-                 {obj.results.map((res) => (
-                   <div key={res.id} className="grid grid-cols-12 text-sm border-b last:border-0 border-gray-300 p-3 items-center print:text-xs print:py-2">
+                 {obj.results.map((res) => {
+                   // Calculate Highlighting for Actual Performance
+                   const cleanActual = res.actualPerformance?.trim();
+                   const isLow = cleanActual && cleanActual === res.targetLow?.trim();
+                   const isExpected = cleanActual && cleanActual === res.targetExpected?.trim();
+                   const isHigh = cleanActual && cleanActual === res.targetHigh?.trim();
+
+                   return (
+                   <div key={res.id} className="grid grid-cols-12 text-sm border-b last:border-0 border-gray-300 p-3 items-start print:text-[10px] print:py-1 print-break-inside-avoid">
                       <div className="col-span-3 font-bold pl-2 text-gray-900">{res.name}</div>
                       <div className="col-span-1 text-center font-medium">{res.weight}%</div>
-                      <div className="col-span-3 flex flex-col gap-1 text-xs print:text-[10px] px-1">
-                         <div className="flex justify-between border-b border-gray-100 pb-0.5">
-                            <span className="text-gray-500 font-bold">منخفض:</span>
+                      <div className="col-span-3 flex flex-col gap-1 text-xs print:text-[9px] px-1">
+                         <div className={`flex justify-between border-b border-gray-100 pb-0.5 px-1 rounded-sm ${isLow ? 'bg-gray-200 font-bold text-black print:bg-gray-400 print:text-black' : 'text-gray-500'}`}>
+                            <span>منخفض:</span>
                             <span>{res.targetLow}</span>
                          </div>
-                         <div className="flex justify-between border-b border-gray-100 pb-0.5 font-bold bg-blue-50/50">
-                            <span className="text-blue-600">متوقع:</span>
-                            <span className="text-blue-800">{res.targetExpected}</span>
+                         <div className={`flex justify-between border-b border-gray-100 pb-0.5 px-1 rounded-sm ${isExpected ? 'bg-gray-200 font-bold text-black print:bg-gray-400 print:text-black' : 'text-gray-500'}`}>
+                            <span>متوقع:</span>
+                            <span>{res.targetExpected}</span>
                          </div>
-                         <div className="flex justify-between">
-                            <span className="text-gray-500 font-bold">عالي:</span>
+                         <div className={`flex justify-between px-1 rounded-sm ${isHigh ? 'bg-gray-200 font-bold text-black print:bg-gray-400 print:text-black' : 'text-gray-500'}`}>
+                            <span>عالي:</span>
                             <span>{res.targetHigh}</span>
                          </div>
                       </div>
-                      <div className="col-span-2 text-center font-black text-lg text-gray-900 print:text-sm">{res.actualPerformance}</div>
+                      <div className="col-span-2 text-center font-black text-lg text-gray-900 print:text-xs">{res.actualPerformance}</div>
+                      
+                      {/* Evidence Column - Horizontal Layout */}
                       <div className="col-span-3">
                          {res.evidence.length > 0 ? (
-                            <div className="flex flex-col gap-2">
+                            <div className="flex flex-row flex-wrap gap-2 items-start content-start print:gap-1">
                                {res.evidence.map(ev => {
-                                 // Update: No longer restrictive square aspect ratio
+                                 // Render Text Evidence
+                                 if (ev.type === 'TEXT') {
+                                    return (
+                                        <div key={ev.id} className="min-w-[50px] max-w-full bg-gray-50 p-1.5 rounded text-[10px] border border-gray-200 print:text-[9px] print:p-1 print:bg-white print:border-gray-400 text-justify leading-tight shadow-sm flex-grow">
+                                            <p className="text-gray-900 whitespace-pre-wrap">
+                                                {ev.content}
+                                            </p>
+                                        </div>
+                                    );
+                                 }
+
+                                 // Render Image Evidence
                                  if (ev.type === 'IMAGE') return (
-                                   <div key={ev.id} className="border border-gray-200 p-2 bg-white rounded-lg overflow-hidden print:border-gray-400 break-inside-avoid">
-                                     <img src={ev.content} className="w-full h-auto max-h-[300px] object-contain rounded-md mx-auto" alt="Evidence" />
+                                   <div key={ev.id} className="border border-gray-200 p-0.5 bg-white rounded overflow-hidden print:border-0 inline-block shadow-sm">
+                                     <img src={ev.content} className="h-16 w-auto print:h-14 object-contain rounded-sm" alt="Evidence" />
                                    </div>
                                  );
-                                 // For links and videos, show QR code and link
+
+                                 // Render Link/Video Evidence
                                  if (ev.type === 'LINK' || ev.type === 'VIDEO') {
                                    const safeUrl = ensureUrlProtocol(ev.content);
                                    return (
-                                     <div key={ev.id} className="flex items-center gap-3 border p-2 rounded-lg bg-white border-gray-200 print:border-gray-400 print:p-1 break-inside-avoid">
+                                     <div key={ev.id} className="flex flex-col items-center gap-1 border p-1 rounded bg-white border-gray-200 print:border-gray-400 max-w-[80px]">
                                          <img 
                                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(safeUrl)}`} 
-                                           className="w-12 h-12 print:w-14 print:h-14 object-contain border border-gray-100" 
+                                           className="w-10 h-10 print:w-12 print:h-12 object-contain" 
                                            alt="QR Code" 
                                          />
-                                         <div className="flex-1 min-w-0">
-                                           <a href={safeUrl} target="_blank" rel="noreferrer" className="text-xs print:text-xs text-blue-700 font-bold underline truncate block">
-                                              {ev.content}
-                                           </a>
-                                           <span className="text-[10px] text-gray-500 block mt-0.5 print:hidden">امسح الرمز للانتقال للرابط</span>
-                                         </div>
+                                         <a href={safeUrl} target="_blank" rel="noreferrer" className="text-[8px] print:text-[8px] text-blue-700 font-bold underline truncate w-full text-center">
+                                            رابط
+                                         </a>
                                      </div>
                                    );
                                  }
                                  
-                                 // For PDF or Text
-                                 return (
-                                   <div key={ev.id} className="flex items-center gap-2 border p-2 rounded-lg bg-white border-gray-200 print:border-gray-400 print:p-1 break-inside-avoid">
-                                      <span className="text-xs print:text-[10px] text-gray-700 font-medium truncate block w-full">
-                                          {ev.type === 'PDF' ? (ev.notes || 'ملف PDF') : ev.content}
-                                      </span>
-                                   </div>
-                                 );
+                                 return null;
                                })}
                             </div>
-                         ) : <span className="text-gray-400 italic text-sm">لا يوجد</span>}
+                         ) : <span className="text-gray-400 italic text-xs">لا يوجد</span>}
                       </div>
                    </div>
-                 ))}
+                 )})}
               </div>
             ))}
           </div>
 
           {/* Combined Section for Signatures to prevent page break */}
-          <div className="print-break-inside mt-8 print:mt-4">
+          <div className="print-break-inside-avoid mt-8 print:mt-4">
              {/* Footer Signatures - NO ANALYSIS */}
-             <div className="flex justify-between px-10 pt-10 border-t-2 border-gray-300 text-base print:mt-6 print:pt-4 print:text-xs print:px-4">
+             <div className="flex justify-between px-10 pt-10 border-t-4 border-double border-oman-red text-base print:mt-2 print:pt-4 print:text-xs print:px-4">
                 <div className="text-center">
-                   <p className="font-bold mb-12 text-black print:mb-8">الموظف</p>
+                   <p className="font-bold mb-12 text-black print:mb-6">الموظف</p>
                    <p className="text-gray-400">..................</p>
                 </div>
                 <div className="text-center">
-                   <p className="font-bold mb-12 text-black print:mb-8">المسؤول المباشر</p>
+                   <p className="font-bold mb-12 text-black print:mb-6">المسؤول المباشر</p>
                    <p className="text-gray-400">..................</p>
                 </div>
                 <div className="text-center">
-                   <p className="font-bold mb-12 text-black print:mb-8">الاعتماد</p>
+                   <p className="font-bold mb-12 text-black print:mb-6">الاعتماد</p>
                    <p className="text-gray-400">..................</p>
                 </div>
              </div>

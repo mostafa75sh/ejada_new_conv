@@ -1,4 +1,4 @@
-export type EvidenceType = 'IMAGE' | 'LINK' | 'VIDEO' | 'PDF' | 'TEXT';
+export type EvidenceType = 'IMAGE' | 'LINK' | 'VIDEO' | 'TEXT';
 
 export interface Evidence {
   id: string;
